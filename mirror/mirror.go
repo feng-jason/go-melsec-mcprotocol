@@ -3,7 +3,7 @@ package mirror
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/feng-jason/go-mcprotocol/mcp"
+	"github.com/feng-jason/go-melsec-mcprotocol/mcp"
 	"io"
 	"log"
 	"sync"

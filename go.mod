@@ -1,4 +1,4 @@
-module github.com/feng-jason/go-mcprotocol
+module github.com/feng-jason/go-melsec-mcprotocol
 
 go 1.13
 
