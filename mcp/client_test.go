@@ -1,0 +1,231 @@
+package mcp
+
+import (
+	"encoding/hex"
+	"fmt"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+)
+
+var (
+	testPLCHost string
+	testPLCPort int
+)
+
+func init() {
+	testPLCHost = os.Getenv("PLC_TEST_HOST")
+	if p := os.Getenv("PLC_TEST_PORT"); p != "" {
+		if port, err := strconv.Atoi(p); err == nil {
+			testPLCPort = port
+		}
+	}
+}
+
+func TestClient3E_Read(t *testing.T) {
+	// running only when there is and plc that can be accepted mc protocol
+	if testPLCHost == "" {
+		t.Skip("environment variable PLC_TEST_HOST is not set")
+	}
+	if testPLCPort == 0 {
+		t.Skip("environment variable PLC_TEST_PORT is not set")
+	}
+
+	client, err := New3EClient(testPLCHost, testPLCPort, NewLocalStation())
+	if err != nil {
+		t.Fatalf("PLC does not exists? %v", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close()
+
+	// 1 device
+	resp1, err := client.Read("D", 100, 1)
+	if err != nil {
+		t.Fatalf("unexpected mcp read err: %v", err)
+	}
+
+	if len(resp1) != 13 {
+		t.Fatalf("expected %v but actual is %v", 13, len(resp1))
+	}
+	if hex.EncodeToString(resp1) != strings.ReplaceAll("d000 00 ff ff03 0004 0000 0000 00", " ", "") {
+		t.Fatalf("expected %v but actual is %v", "d00000ffff0300040000000000", hex.EncodeToString(resp1))
+	}
+
+	// 3 device
+	resp2, err := client.Read("D", 100, 5)
+	if err != nil {
+		t.Fatalf("unexpected mcp read err: %v", err)
+	}
+
+	if len(resp2) != 21 {
+		t.Fatalf("expected %v but actual is %v", 21, len(resp2))
+	}
+
+	if hex.EncodeToString(resp2) != strings.ReplaceAll("d000 00 ff ff03 000c 0000 0000 000000000000000000", " ", "") {
+		t.Fatalf("expected %v but actual is %v", "d00000ffff03000c00000000000000000000000000", hex.EncodeToString(resp2))
+	}
+
+}
+
+func TestClient3E_BitRead(t *testing.T) {
+	// running only when there is and plc that can be accepted mc protocol
+	if testPLCHost == "" {
+		t.Skip("environment variable PLC_TEST_HOST is not set")
+	}
+	if testPLCPort == 0 {
+		t.Skip("environment variable PLC_TEST_PORT is not set")
+	}
+
+	client, err := New3EClient(testPLCHost, testPLCPort, NewLocalStation())
+	if err != nil {
+		t.Fatalf("PLC does not exists? %v", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close()
+
+	// 1 device
+	resp1, err := client.BitRead("B", 0, 1)
+	if err != nil {
+		t.Fatalf("unexpected mcp read err: %v", err)
+	}
+
+	if len(resp1) != 12 {
+		t.Fatalf("expected %v but actual is %v", 12, len(resp1))
+	}
+	if hex.EncodeToString(resp1) != strings.ReplaceAll("d000 00 ff ff03 0003 0000 0000", " ", "") {
+		t.Fatalf("expected %v but actual is %v", "d00000ffff03000300000000", hex.EncodeToString(resp1))
+	}
+
+	// 3 device
+	resp2, err := client.BitRead("B", 0, 5)
+	if err != nil {
+		t.Fatalf("unexpected mcp read err: %v", err)
+	}
+
+	if len(resp2) != 14 {
+		t.Fatalf("expected %v but actual is %v", 14, len(resp2))
+	}
+
+	if hex.EncodeToString(resp2) != strings.ReplaceAll("d000 00 ff ff03 0005 0000 0000 0000", " ", "") {
+		t.Fatalf("expected %v but actual is %v", "d00000ffff030005000000000000", hex.EncodeToString(resp2))
+	}
+
+	// numpoints 5 and 6 will return same responce length
+	resp3, err := client.BitRead("B", 0, 6)
+	if err != nil {
+		t.Fatalf("unexpected mcp read err: %v", err)
+	}
+
+	if len(resp2) != 14 {
+		t.Fatalf("expected %v but actual is %v", 14, len(resp3))
+	}
+
+	if hex.EncodeToString(resp2) != strings.ReplaceAll("d000 00 ff ff03 0005 0000 0000 0000", " ", "") {
+		t.Fatalf("expected %v but actual is %v", "d00000ffff030005000000000000", hex.EncodeToString(resp3))
+	}
+}
+
+func TestClient3E_Write(t *testing.T) {
+	// running only when there is and plc that can be accepted mc protocol
+	if testPLCHost == "" {
+		t.Skip("environment variable PLC_TEST_HOST is not set")
+	}
+	if testPLCPort == 0 {
+		t.Skip("environment variable PLC_TEST_PORT is not set")
+	}
+
+	client, err := New3EClient(testPLCHost, testPLCPort, NewLocalStation())
+	if err != nil {
+		t.Fatalf("PLC does not exists? %v", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close()
+
+	_, err = client.Write("D", 100, 4, []byte("test"))
+	if err != nil {
+		t.Fatalf("unexpected mcp write err: %v", err)
+	}
+}
+
+func TestClient3E_Ping(t *testing.T) {
+	// running only when there is and plc that can be accepted mc protocol
+	if testPLCHost == "" {
+		t.Skip("environment variable PLC_TEST_HOST is not set")
+	}
+	if testPLCPort == 0 {
+		t.Skip("environment variable PLC_TEST_PORT is not set")
+	}
+
+	client, err := New3EClient(testPLCHost, testPLCPort, NewLocalStation())
+	if err != nil {
+		t.Fatalf("PLC does not exists? %v", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close()
+
+	if err := client.HealthCheck(); err != nil {
+		t.Fatalf("unexpected error occured %v", err)
+	}
+}
+
+func TestClient3E_LongConnection(t *testing.T) {
+	if testPLCHost == "" {
+		t.Skip("environment variable PLC_TEST_HOST is not set")
+	}
+	if testPLCPort == 0 {
+		t.Skip("environment variable PLC_TEST_PORT is not set")
+	}
+
+	client, err := New3EClient(testPLCHost, testPLCPort, NewLocalStation())
+	if err != nil {
+		t.Fatalf("PLC does not exists? %v", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	var count int64
+	fmt.Printf("start long connection test, press Ctrl+C to stop\n")
+	fmt.Printf("  host: %v:%v, interval: 100ms\n", testPLCHost, testPLCPort)
+
+	for {
+		select {
+		case <-sigCh:
+			fmt.Printf("\nreceived shutdown signal, total read count: %v\n", count)
+			return
+		case <-ticker.C:
+			resp, err := client.Read("D", 100, 1)
+			if err != nil {
+				fmt.Printf("[ERROR] read failed: %v\n", err)
+				continue
+			}
+			count++
+			fmt.Printf("[%v] read count: %v, resp: %X\n",
+				time.Now().Format("15:04:05.000"), count, resp)
+		}
+	}
+}
